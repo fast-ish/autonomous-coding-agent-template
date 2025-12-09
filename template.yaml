@@ -1,0 +1,247 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: autonomous-coding-agent
+  title: Autonomous Coding Agent (Golden Path)
+  description: Production-ready autonomous coding agent with Claude SDK, safety guardrails, and enterprise patterns
+  tags:
+    - python
+    - ai
+    - agent
+    - claude
+    - golden-path
+spec:
+  owner: platform
+  type: service
+
+  parameters:
+    - title: Component Info
+      required:
+        - name
+        - owner
+      properties:
+        name:
+          title: Name
+          type: string
+          description: Unique name of the agent
+          pattern: "^[a-z][a-z0-9-]*$"
+          ui:autofocus: true
+        owner:
+          title: Owner Team
+          type: string
+          description: Team that owns this agent
+          ui:field: OwnerPicker
+          ui:options:
+            catalogFilter:
+              kind: Group
+        description:
+          title: Description
+          type: string
+          description: What does this agent do?
+
+    - title: Runtime
+      properties:
+        pythonVersion:
+          title: Python Version
+          type: string
+          enum:
+            - "3.13"
+            - "3.12"
+            - "3.11"
+          enumNames:
+            - "3.13 (Latest)"
+            - "3.12 (Recommended)"
+            - "3.11 (LTS)"
+          default: "3.12"
+        packageManager:
+          title: Package Manager
+          type: string
+          enum:
+            - uv
+            - poetry
+            - pip
+          enumNames:
+            - "uv (Recommended)"
+            - "Poetry"
+            - "pip"
+          default: uv
+
+    - title: Model & SDK
+      properties:
+        defaultModel:
+          title: Default Model
+          type: string
+          enum:
+            - claude-sonnet-4-5-20250929
+            - claude-opus-4-5-20251101
+            - claude-haiku-3-5-20241022
+          enumNames:
+            - "Claude Sonnet 4.5 (Recommended)"
+            - "Claude Opus 4.5 (Most capable)"
+            - "Claude Haiku 3.5 (Fastest)"
+          default: claude-sonnet-4-5-20250929
+          description: Default Claude model for agent tasks
+        maxTurns:
+          title: Max Conversation Turns
+          type: integer
+          default: 100
+          minimum: 10
+          maximum: 1000
+          description: Maximum turns per agent session
+
+    - title: Tools & MCP Servers
+      properties:
+        enableFileTools:
+          title: File Operations
+          type: boolean
+          default: true
+          description: Read, write, edit, glob, grep tools
+        enableBashTools:
+          title: Bash Commands
+          type: boolean
+          default: true
+          description: Command execution with allowlist
+        enableBrowserTools:
+          title: Browser Automation
+          type: boolean
+          default: false
+          description: Puppeteer MCP for web interaction
+        enableGitHubTools:
+          title: GitHub Integration
+          type: boolean
+          default: false
+          description: GitHub MCP for PR/issue management
+        enableDatabaseTools:
+          title: Database Access
+          type: boolean
+          default: false
+          description: PostgreSQL/SQLite MCP for queries
+
+    - title: Agent Behavior
+      properties:
+        agentPattern:
+          title: Agent Pattern
+          type: string
+          enum:
+            - two-phase
+            - single-session
+            - multi-agent
+          enumNames:
+            - "Two-Phase (Initializer + Coder)"
+            - "Single Session"
+            - "Multi-Agent Pipeline"
+          default: two-phase
+          description: How the agent manages long-running tasks
+        progressTracking:
+          title: Progress Tracking
+          type: string
+          enum:
+            - feature-list
+            - git-commits
+            - none
+          enumNames:
+            - "Feature List JSON (Recommended)"
+            - "Git Commits Only"
+            - "None"
+          default: feature-list
+          description: How to track task completion
+        maxIterations:
+          title: Max Iterations
+          type: integer
+          default: 50
+          minimum: 1
+          maximum: 200
+          description: Maximum agent iterations per session
+
+    - title: Security
+      properties:
+        sandboxMode:
+          title: Sandbox Mode
+          type: string
+          default: container
+          enum:
+            - container
+            - none
+          enumNames:
+            - "Container (Recommended)"
+            - "None (development only)"
+          description: OS-level sandbox for command execution
+        allowedCommands:
+          title: Allowed Bash Commands
+          type: array
+          default:
+            - ls
+            - cat
+            - grep
+            - git
+            - npm
+            - node
+            - python
+            - pip
+          items:
+            type: string
+          description: Commands the agent can execute
+
+    - title: Repository
+      required:
+        - repoUrl
+      properties:
+        repoUrl:
+          title: Repository Location
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts:
+              - github.com
+
+  steps:
+    - id: fetch-skeleton
+      name: Fetch Skeleton
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          name: ${{ parameters.name }}
+          owner: ${{ parameters.owner }}
+          description: ${{ parameters.description }}
+          pythonVersion: ${{ parameters.pythonVersion }}
+          packageManager: ${{ parameters.packageManager }}
+          defaultModel: ${{ parameters.defaultModel }}
+          maxTurns: ${{ parameters.maxTurns }}
+          enableFileTools: ${{ parameters.enableFileTools }}
+          enableBashTools: ${{ parameters.enableBashTools }}
+          enableBrowserTools: ${{ parameters.enableBrowserTools }}
+          enableGitHubTools: ${{ parameters.enableGitHubTools }}
+          enableDatabaseTools: ${{ parameters.enableDatabaseTools }}
+          agentPattern: ${{ parameters.agentPattern }}
+          progressTracking: ${{ parameters.progressTracking }}
+          maxIterations: ${{ parameters.maxIterations }}
+          sandboxMode: ${{ parameters.sandboxMode }}
+          allowedCommands: ${{ parameters.allowedCommands }}
+
+    - id: publish
+      name: Publish to GitHub
+      action: publish:github
+      input:
+        allowedHosts:
+          - github.com
+        repoUrl: ${{ parameters.repoUrl }}
+        description: ${{ parameters.description }}
+        defaultBranch: main
+        protectDefaultBranch: true
+        repoVisibility: private
+
+    - id: register
+      name: Register Component
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps.publish.output.repoContentsUrl }}
+        catalogInfoPath: /catalog-info.yaml
+
+  output:
+    links:
+      - title: Repository
+        url: ${{ steps.publish.output.remoteUrl }}
+      - title: Open in Backstage
+        icon: catalog
+        entityRef: ${{ steps.register.output.entityRef }}

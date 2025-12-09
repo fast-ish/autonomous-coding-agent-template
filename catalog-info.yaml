@@ -1,0 +1,16 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: autonomous-coding-agent-template
+  description: Backstage template for autonomous coding agents using Claude SDK
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+  tags:
+    - backstage
+    - template
+    - python
+    - ai-agent
+spec:
+  type: template
+  lifecycle: production
+  owner: platform-team
