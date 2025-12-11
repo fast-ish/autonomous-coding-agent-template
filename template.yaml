@@ -11,7 +11,7 @@ metadata:
     - claude
     - golden-path
 spec:
-  owner: platform
+  owner: platform-team
   type: service
 
   parameters:
