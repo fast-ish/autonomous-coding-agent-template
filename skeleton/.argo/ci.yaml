@@ -1,0 +1,18 @@
+# =============================================================================
+# ARGO CI CONFIGURATION
+# =============================================================================
+language: python
+team: ${{values.owner | replace("group:", "") | replace("team-", "")}}
+
+config:
+  python-version: "${{values.pythonVersion}}"
+  package-manager: "${{values.packageManager}}"
+  skip-tests: false
+  # Agents are typically run as jobs, not long-running services
+  deploy-enabled: false
+
+  agent:
+    model: "${{values.defaultModel}}"
+    max-turns: ${{values.maxTurns}}
+    max-iterations: ${{values.maxIterations}}
+    sandbox-mode: "${{values.sandboxMode}}"

@@ -1,0 +1,73 @@
+# =============================================================================
+# AGENT JOB TEMPLATE
+# =============================================================================
+# Autonomous coding agents run as Kubernetes Jobs, not deployments.
+# Use this template to run agent tasks on-demand or via Argo Workflows.
+# =============================================================================
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ${{values.name}}-run
+  labels:
+    app.kubernetes.io/name: ${{values.name}}
+    app.kubernetes.io/component: agent
+    fasti.sh/template: autonomous-coding-agent
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 86400  # Clean up after 24 hours
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ${{values.name}}
+    spec:
+      serviceAccountName: ${{values.owner | replace("group:", "") | replace("team-", "")}}-workload
+      restartPolicy: OnFailure
+{%- if values.sandboxMode == "container" %}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+{%- endif %}
+      containers:
+        - name: agent
+          image: IMAGE_PLACEHOLDER:latest
+          env:
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ${{values.name}}-secrets
+                  key: ANTHROPIC_API_KEY
+            - name: DEFAULT_MODEL
+              value: "${{values.defaultModel}}"
+            - name: MAX_TURNS
+              value: "${{values.maxTurns}}"
+            - name: MAX_ITERATIONS
+              value: "${{values.maxIterations}}"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "4000m"
+              memory: "8Gi"
+{%- if values.sandboxMode == "container" %}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false  # Agents need to write files
+            capabilities:
+              drop: ["ALL"]
+{%- endif %}
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+            - name: output
+              mountPath: /output
+      volumes:
+        - name: workspace
+          emptyDir:
+            sizeLimit: 10Gi
+        - name: output
+          emptyDir:
+            sizeLimit: 5Gi
