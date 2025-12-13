@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: ${{values.name}}
+
+resources:
+  - job.yaml
+  - external-secret.yaml
+
+images:
+  - name: IMAGE_PLACEHOLDER
+    newName: 351619759866.dkr.ecr.us-west-2.amazonaws.com/${{values.owner | replace("group:", "") | replace("team-", "")}}/${{values.name}}
+    newTag: latest
+
+commonLabels:
+  app.kubernetes.io/name: ${{values.name}}
+  fasti.sh/team: ${{values.owner | replace("group:", "") | replace("team-", "")}}
+  fasti.sh/component-type: agent
